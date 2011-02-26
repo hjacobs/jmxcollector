@@ -25,6 +25,18 @@ using JMX user `jmxusr` and password `myjmxpwd`:
 * Tomcat AJP requests per second into `/data/rrd/web01/p8080/requests.rrd`
 * Number of logins per second (custom MBean) into `/data/rrd/web01/p8080/logins.rrd`
 
+Another example configuration:
+
+    # Collecting requests/s from 3 different tomcat instances all running on host soap02
+    # the tomcat instances listen on HTTP port 38080, 38081 and 38082
+    jmxusr:myjmxpwd@soap02:48080
+        /data/rrd/%h/p%4p/requests.rrd:requests = "Catalina:type=GlobalRequestProcessor,name=http-3%4p".requestCount
+    jmxusr:myjmxpwd@soap02:48081
+        /data/rrd/%h/p%4p/requests.rrd:requests = "Catalina:type=GlobalRequestProcessor,name=http-3%4p".requestCount
+    jmxusr:myjmxpwd@soap02:48082
+        /data/rrd/%h/p%4p/requests.rrd:requests = "Catalina:type=GlobalRequestProcessor,name=http-3%4p".requestCount
+
+
 
 Running
 -------
