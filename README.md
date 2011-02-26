@@ -21,6 +21,7 @@ The easiest way to configure it is using a custom `config.cfg` file, see example
 
 The above sample configuration would collect data from server `web01` (with JMX port at 48080) 
 using JMX user `jmxusr` and password `myjmxpwd`:
+
 * Tomcat AJP requests per second into `/data/rrd/web01/p8080/requests.rrd`
 * Number of logins per second (custom MBean) into `/data/rrd/web01/p8080/logins.rrd`
 
