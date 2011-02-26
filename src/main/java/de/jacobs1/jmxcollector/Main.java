@@ -2,8 +2,8 @@ package de.jacobs1.jmxcollector;
 
 import java.awt.Color;
 import java.awt.image.BufferedImage;
+import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
 import java.rmi.ConnectException;
@@ -60,7 +60,6 @@ public class Main {
 
         if (args.length < 1) {
             System.out.println("Usage: jmxcollector <CONFIGFILE>");
-            System.out.println("Usage: jmxcollector <JMXURL> <RRDFILE>");
             return;
         }
 
@@ -72,14 +71,22 @@ public class Main {
         run(args[0]);
     }
 
-    public static void run(final String configFile) throws FileNotFoundException, IOException, MalformedObjectNameException, MBeanException, AttributeNotFoundException, InstanceNotFoundException, ReflectionException {
+    /**
+     * old style properties based config
+     * @param configFile
+     * @param datasources
+     * @return
+     * @throws IOException
+     * @throws MalformedObjectNameException
+     */
+    private static int loadConfigFromProperties(final String configFile,
+            final List<DataSource> datasources) throws IOException, MalformedObjectNameException {
+        final List<Connection> connections = new ArrayList<Connection>();
+
         final Properties props = new Properties();
         final FileReader fr = new FileReader(configFile);
         props.load(fr);
         fr.close();
-
-        final List<Connection> connections = new ArrayList<Connection>();
-        final List<DataSource> datasources = new ArrayList<DataSource>();
 
         String val;
         int i;
@@ -105,13 +112,96 @@ public class Main {
             ds.setRrdPath(parts[0]);
             ds.setRrdDSName(parts[1]);
             datasources.add(ds);
-            createRrdFile(ds.getRrdPath(), ds.getRrdDSName());
             i++;
         }
+        return connections.size();
 
+    }
+
+    private static String stripQuotes(String str) {
+        if (str.startsWith("\"")) {
+            str = str.substring(1);
+        }
+        if (str.endsWith("\"")) {
+            str = str.substring(0, str.length()-1);
+        }
+        return str;
+    }
+
+    private static String replaceVariables(final String inp, final Connection conn) {
+        return inp
+                .replaceAll("%h", conn.getHost())
+                .replaceAll("%4p", conn.getPort().substring(conn.getPort().length()-4));
+    }
+
+    private static int loadConfigFromConfigFile(final String configFile,
+            final List<DataSource> datasources) throws IOException, MalformedObjectNameException {
+
+        int numberOfConnections = 0;
+        
+        final FileReader fr = new FileReader(configFile);
+        final BufferedReader br = new BufferedReader(fr);
+
+        String line;
+        String[] parts;
+        Connection conn = null;
+        DataSource ds;
+        while ((line = br.readLine()) != null)   {
+            if (line.trim().startsWith("#") || line.trim().isEmpty()) {
+                // comment
+                continue;
+            }
+            if (!line.startsWith(" ") && !line.startsWith("\t")) {
+                line = line.trim();
+                // connection definition
+                parts = line.split("[@:]", 4);
+                conn = new Connection();
+                conn.setHost(parts[2]);
+                conn.setPort(parts[3]);
+                conn.setUser(parts[0]);
+                conn.setPassword(parts[1]);
+                numberOfConnections++;
+            } else {
+                line = line.trim();
+                // datasource definition (uses most recently defined connection)
+                parts = line.split("\\s*=\\s*", 2);
+                ds = new DataSource();
+                ds.setConnection(conn);
+                final int dot = parts[1].lastIndexOf('.');
+                ds.setBeanName(new ObjectName(replaceVariables(stripQuotes(parts[1].substring(0, dot)), conn)));
+                ds.setAttributeName(parts[1].substring(dot + 1));
+                final String[] pathDSName = parts[0].split(":", 2);
+                ds.setRrdPath(replaceVariables(pathDSName[0], conn));
+                ds.setRrdDSName(pathDSName[1]);
+                datasources.add(ds);
+            }
+        }
+
+        fr.close();
+
+        return numberOfConnections;
+
+    }
+
+    public static void run(final String configFile) throws IOException,
+            MalformedObjectNameException, MBeanException, AttributeNotFoundException,
+            InstanceNotFoundException, ReflectionException {
+        
+        final List<DataSource> datasources = new ArrayList<DataSource>();
+        int numberOfConnections;
+
+        if (configFile.endsWith(".properties")) {
+            numberOfConnections = loadConfigFromProperties(configFile, datasources);
+        } else {
+            numberOfConnections = loadConfigFromConfigFile(configFile, datasources);
+        }
+        
         LOG.info("Loaded config from " + configFile + " with "
-                + connections.size() + " connections and " + datasources.size() + " datasources");
+                + numberOfConnections + " connections and " + datasources.size() + " datasources");
 
+        for (DataSource ds : datasources) {
+            createRrdFile(ds.getRrdPath(), ds.getRrdDSName());
+        }
 
         final RrdDbPool pool = RrdDbPool.getInstance();
         pool.setCapacity(datasources.size() * 2);
@@ -122,7 +212,7 @@ public class Main {
 
         final long interval = 2000;
         long lastTime = System.currentTimeMillis();
-        i = 0;
+        int i = 0;
         int j;
         MBeanServerConnection mbsc;
         Sample sample;
