@@ -25,3 +25,12 @@ using JMX user `jmxusr` and password `myjmxpwd`:
 * Tomcat AJP requests per second into `/data/rrd/web01/p8080/requests.rrd`
 * Number of logins per second (custom MBean) into `/data/rrd/web01/p8080/logins.rrd`
 
+
+Running
+-------
+
+Building with maven and starting JMX Collector using configuration file `config.cfg`:
+
+    mvn package && java -jar target/jmxcollector-1.0-SNAPSHOT-jar-with-dependencies.jar config.cfg
+
+
