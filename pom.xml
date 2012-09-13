@@ -5,7 +5,7 @@
     <groupId>de.jacobs1</groupId>
     <artifactId>jmxcollector</artifactId>
     <packaging>jar</packaging>
-    <version>1.0-SNAPSHOT</version>
+    <version>1.1-SNAPSHOT</version>
     <name>JMX Collector</name>
     <description>Collects JMX data into RRD files</description>
     <url>http://www.jacobs1.de</url>
@@ -20,7 +20,7 @@
                     <encoding>UTF-8</encoding>
                 </configuration>
             </plugin>
-        
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -61,7 +61,7 @@
         <dependency>
             <groupId>org.rrd4j</groupId>
             <artifactId>rrd4j</artifactId>
-            <version>2.0.5</version>
+            <version>2.1.1</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

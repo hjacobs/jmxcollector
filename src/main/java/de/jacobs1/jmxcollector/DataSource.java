@@ -1,11 +1,13 @@
 package de.jacobs1.jmxcollector;
 
 import javax.management.ObjectName;
+
+import org.rrd4j.DsType;
+
 import org.rrd4j.core.RrdDb;
 
 /**
- *
- * @author henning
+ * @author  henning
  */
 public class DataSource {
 
@@ -14,6 +16,7 @@ public class DataSource {
     private String attributeName;
     private String rrdPath;
     private String rrdDSName;
+    private DsType rrdDSType;
 
     private RrdDb rrdDb;
 
@@ -61,9 +64,16 @@ public class DataSource {
         return rrdDb;
     }
 
-    public void setRrdDb(RrdDb rrdDb) {
+    public void setRrdDb(final RrdDb rrdDb) {
         this.rrdDb = rrdDb;
     }
 
-    
+    public DsType getRrdDSType() {
+        return rrdDSType;
+    }
+
+    public void setRrdDSType(final DsType rrdDSType) {
+        this.rrdDSType = rrdDSType;
+    }
+
 }
