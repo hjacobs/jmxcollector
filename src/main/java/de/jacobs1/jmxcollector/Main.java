@@ -247,7 +247,7 @@ public class Main {
         final long interval = 2000;
         int j;
 
-        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(datasources.size(),
+        ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(numberOfConnections,
                 new DaemonThreadFactory("Updater"));
 
         j = 1;
@@ -316,7 +316,7 @@ public class Main {
                 }
             };
 
-            executor.scheduleAtFixedRate(updater, 0, interval, TimeUnit.MILLISECONDS);
+            executor.scheduleWithFixedDelay(updater, 0, interval, TimeUnit.MILLISECONDS);
             j++;
         }
 
