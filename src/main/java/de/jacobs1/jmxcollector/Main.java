@@ -360,7 +360,14 @@ public class Main {
     private static void createRrdFile(final String path, final String dsName, final DsType dsType) throws IOException {
         final RrdDbPool pool = RrdDbPool.getInstance();
 
-        if (!(new File(path)).exists()) {
+        File file = new File(path);
+        if (!file.exists()) {
+
+            // create necessary parent directories:
+            if (!file.getParentFile().exists()) {
+                file.getParentFile().mkdirs();
+            }
+
             LOG.info("Creating new RRD file " + path);
 
             RrdDef def = new RrdDef(path, 2);
