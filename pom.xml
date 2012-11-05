@@ -5,7 +5,7 @@
     <groupId>de.jacobs1</groupId>
     <artifactId>jmxcollector</artifactId>
     <packaging>jar</packaging>
-    <version>1.1-SNAPSHOT</version>
+    <version>1.2-SNAPSHOT</version>
     <name>JMX Collector</name>
     <description>Collects JMX data into RRD files</description>
     <url>http://www.jacobs1.de</url>

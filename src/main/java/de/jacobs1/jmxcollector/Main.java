@@ -156,6 +156,31 @@ public class Main {
                 conn.getPort().substring(conn.getPort().length() - 4));
     }
 
+    private static DataSource getDataSource(String line, final Connection conn) throws MalformedObjectNameException {
+        line = line.trim();
+
+        // datasource definition (uses most recently defined connection)
+        String[] parts = line.split("\\s*=\\s*", 2);
+        DataSource ds = new DataSource();
+        ds.setConnection(conn);
+
+        if (parts[1].startsWith("GAUGE:")) {
+            ds.setRrdDSType(DsType.GAUGE);
+            parts[1] = parts[1].substring(6);
+        } else {
+            ds.setRrdDSType(DsType.DERIVE);
+        }
+
+        final int dot = parts[1].lastIndexOf('.');
+        ds.setBeanName(new ObjectName(replaceVariables(stripQuotes(parts[1].substring(0, dot)), conn)));
+        ds.setAttributeName(parts[1].substring(dot + 1));
+
+        final String[] pathDSName = parts[0].split(":", 2);
+        ds.setRrdPath(replaceVariables(pathDSName[0], conn));
+        ds.setRrdDSName(pathDSName[1]);
+        return ds;
+    }
+
     private static int loadConfigFromConfigFile(final String configFile, final List<DataSource> datasources)
         throws IOException, MalformedObjectNameException {
 
@@ -165,9 +190,10 @@ public class Main {
         final BufferedReader br = new BufferedReader(fr);
 
         String line;
+        List<String> lastDataSourceLines = new ArrayList<String>();
         String[] parts;
         Connection conn = null;
-        DataSource ds;
+        boolean useLastDataSources = false;
         while ((line = br.readLine()) != null) {
             if (line.trim().startsWith("#") || line.trim().isEmpty()) {
 
@@ -176,7 +202,15 @@ public class Main {
             }
 
             if (!line.startsWith(" ") && !line.startsWith("\t")) {
+
                 line = line.trim();
+
+                if (line.endsWith("= last")) {
+                    line = line.substring(0, line.length() - 6).trim();
+                    useLastDataSources = true;
+                } else {
+                    useLastDataSources = false;
+                }
 
                 // connection definition
                 parts = line.split("[@:]", 4);
@@ -186,29 +220,17 @@ public class Main {
                 conn.setUser(parts[0]);
                 conn.setPassword(parts[1]);
                 numberOfConnections++;
-            } else {
-                line = line.trim();
 
-                // datasource definition (uses most recently defined connection)
-                parts = line.split("\\s*=\\s*", 2);
-                ds = new DataSource();
-                ds.setConnection(conn);
-
-                if (parts[1].startsWith("GAUGE:")) {
-                    ds.setRrdDSType(DsType.GAUGE);
-                    parts[1] = parts[1].substring(6);
+                if (useLastDataSources) {
+                    for (String lastLine : lastDataSourceLines) {
+                        datasources.add(getDataSource(lastLine, conn));
+                    }
                 } else {
-                    ds.setRrdDSType(DsType.DERIVE);
+                    lastDataSourceLines.clear();
                 }
-
-                final int dot = parts[1].lastIndexOf('.');
-                ds.setBeanName(new ObjectName(replaceVariables(stripQuotes(parts[1].substring(0, dot)), conn)));
-                ds.setAttributeName(parts[1].substring(dot + 1));
-
-                final String[] pathDSName = parts[0].split(":", 2);
-                ds.setRrdPath(replaceVariables(pathDSName[0], conn));
-                ds.setRrdDSName(pathDSName[1]);
-                datasources.add(ds);
+            } else {
+                lastDataSourceLines.add(line);
+                datasources.add(getDataSource(line, conn));
             }
         }
 
