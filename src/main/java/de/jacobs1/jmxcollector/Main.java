@@ -48,8 +48,7 @@ public class Main {
 
     private static final Logger LOG = Logger.getLogger(Main.class);
 
-    private static final Map<Connection, MBeanServerConnection> mBeanServerConnections =
-        new ConcurrentHashMap<Connection, MBeanServerConnection>();
+    private static final Map<Connection, MBeanServerConnection> mBeanServerConnections = new ConcurrentHashMap<>();
 
     private static final AtomicLong updateCount = new AtomicLong();
 
@@ -100,7 +99,7 @@ public class Main {
      */
     private static int loadConfigFromProperties(final String configFile, final List<DataSource> datasources)
         throws IOException, MalformedObjectNameException {
-        final List<Connection> connections = new ArrayList<Connection>();
+        final List<Connection> connections = new ArrayList<>();
 
         final Properties props = new Properties();
         final FileReader fr = new FileReader(configFile);
@@ -190,7 +189,7 @@ public class Main {
         final BufferedReader br = new BufferedReader(fr);
 
         String line;
-        List<String> lastDataSourceLines = new ArrayList<String>();
+        List<String> lastDataSourceLines = new ArrayList<>();
         String[] parts;
         Connection conn = null;
         boolean useLastDataSources = false;
@@ -243,7 +242,7 @@ public class Main {
     public static void run(final String configFile) throws IOException, MalformedObjectNameException, MBeanException,
         AttributeNotFoundException, InstanceNotFoundException, ReflectionException {
 
-        final List<DataSource> datasources = new ArrayList<DataSource>();
+        final List<DataSource> datasources = new ArrayList<>();
         int numberOfConnections;
 
         if (configFile.endsWith(".properties")) {
@@ -330,7 +329,7 @@ public class Main {
                         } catch (IllegalArgumentException iae) {
                             LOG.error("Dropping sample of datasource " + dataSourceId, iae);
                         }
-                    } catch (final Throwable ex) {
+                    } catch (final Exception ex) {
 
                         // catch all. never fail. that would cancel the scheduler.
                         LOG.error("Unexpected exception while trying to update from datasource " + dataSourceId, ex);
@@ -356,7 +355,7 @@ public class Main {
 
             JMXServiceURL url = new JMXServiceURL("service:jmx:rmi:///jndi/rmi://" + conn.getHost() + ":"
                         + conn.getPort() + "/jmxrmi");
-            Map<String, Object> env = new HashMap<String, Object>();
+            Map<String, Object> env = new HashMap<>();
 
             if (conn.getUser() != null) {
                 String[] credentials = new String[] {conn.getUser(), conn.getPassword()};
@@ -401,11 +400,14 @@ public class Main {
             // 10sec resolution for the last 24 hours
             def.addArchive(ConsolFun.AVERAGE, 0.5, 5, 600 * 24);
 
-            // 1min resolution for the last week
-            def.addArchive(ConsolFun.AVERAGE, 0.5, 30, 60 * 24 * 7);
+            if (!"1d".equals(System.getProperty("jmxcollector.archive"))) {
 
-            // 1 hour resolution for the last 365 days
-            def.addArchive(ConsolFun.AVERAGE, 0.5, 30 * 60, 24 * 365);
+                // 1min resolution for the last week
+                def.addArchive(ConsolFun.AVERAGE, 0.5, 30, 60 * 24 * 7);
+
+                // 1 hour resolution for the last 365 days
+                def.addArchive(ConsolFun.AVERAGE, 0.5, 30 * 60, 24 * 365);
+            }
 
             RrdDb rrd = pool.requestRrdDb(def);
             pool.release(rrd);
