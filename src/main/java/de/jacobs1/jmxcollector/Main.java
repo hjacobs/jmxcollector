@@ -8,6 +8,13 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardWatchEventKinds;
+import java.nio.file.WatchEvent;
+import java.nio.file.WatchKey;
+import java.nio.file.WatchService;
+
 import java.rmi.ConnectException;
 
 import java.util.ArrayList;
@@ -20,13 +27,10 @@ import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-import javax.management.AttributeNotFoundException;
 import javax.management.InstanceNotFoundException;
-import javax.management.MBeanException;
 import javax.management.MBeanServerConnection;
 import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
-import javax.management.ReflectionException;
 import javax.management.remote.JMXConnector;
 import javax.management.remote.JMXConnectorFactory;
 import javax.management.remote.JMXServiceURL;
@@ -84,6 +88,41 @@ public class Main {
         }
 
         run(args[0]);
+
+    }
+
+    private static void listenForChanges(final String configFile) throws Exception {
+        File f = new File(configFile);
+
+        String absolutePath = f.getAbsolutePath();
+        String filePath = absolutePath.substring(0, absolutePath.lastIndexOf(File.separator));
+
+        Path path = Paths.get(filePath);
+        WatchService ws = path.getFileSystem().newWatchService();
+        path.register(ws, StandardWatchEventKinds.ENTRY_MODIFY);
+
+        WatchKey watch = null;
+        while (true) {
+            try {
+                watch = ws.take();
+            } catch (InterruptedException ex) {
+                System.err.println("Interrupted");
+            }
+
+            List<WatchEvent<?>> events = watch.pollEvents();
+            watch.reset();
+            for (WatchEvent<?> event : events) {
+                WatchEvent.Kind<Path> kind = (WatchEvent.Kind<Path>) event.kind();
+                Path context = (Path) event.context();
+                if (f.getName().equals(context.getFileName().toString())) {
+                    if (kind.equals(StandardWatchEventKinds.ENTRY_MODIFY)) {
+                        LOG.info("Modified config file: " + context.getFileName());
+                        run(configFile);
+                    }
+                }
+            }
+        }
+
     }
 
     /**
@@ -239,8 +278,7 @@ public class Main {
 
     }
 
-    public static void run(final String configFile) throws IOException, MalformedObjectNameException, MBeanException,
-        AttributeNotFoundException, InstanceNotFoundException, ReflectionException {
+    public static void run(final String configFile) throws Exception {
 
         final List<DataSource> datasources = new ArrayList<>();
         int numberOfConnections;
@@ -259,7 +297,12 @@ public class Main {
         }
 
         final RrdDbPool pool = RrdDbPool.getInstance();
-        pool.setCapacity(datasources.size() * 2);
+
+        // setCapacitry can only be done for empty pools
+        if (pool.getOpenFileCount() == 0) {
+
+            pool.setCapacity(datasources.size() * 2);
+        }
 
         for (DataSource dataSource : datasources) {
             dataSource.setRrdDb(pool.requestRrdDb(dataSource.getRrdPath()));
@@ -342,6 +385,9 @@ public class Main {
         }
 
         int i = 0;
+
+        listenForChanges(configFile);
+
         while (true) {
             sleep(60000);
             LOG.info("Heartbeat " + i + " (" + updateCount.get() + " updates)");
